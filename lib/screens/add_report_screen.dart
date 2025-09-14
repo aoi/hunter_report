@@ -8,7 +8,10 @@ import '../services/camera_service.dart';
 import '../services/location_service.dart';
 
 class AddReportScreen extends StatefulWidget {
-  const AddReportScreen({super.key});
+
+  final HuntReport? report;
+
+  const AddReportScreen({super.key, this.report});
 
   @override
   State<AddReportScreen> createState() => _AddReportScreenState();
@@ -17,6 +20,7 @@ class AddReportScreen extends StatefulWidget {
 class _AddReportScreenState extends State<AddReportScreen> {
   final _formKey = GlobalKey<FormState>();
   final _locationController = TextEditingController();
+  final _meshNumberController = TextEditingController();
   
   DateTime _selectedDateTime = DateTime.now();
   double? _latitude;
@@ -24,7 +28,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
   bool _isLoading = false;
   
   // 獲物のリスト
-  List<GameItemData> _gameItems = [];
+  List<HuntedAnimalData> _huntedAnimals = [];
   
   // 獲物の種類の選択肢
   static const List<String> _animalTypes = [
@@ -36,18 +40,36 @@ class _AddReportScreenState extends State<AddReportScreen> {
     'その他',
   ];
 
+  bool get _isEditMode => widget.report != null;
+
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
-    // 最初の獲物を追加
-    _addGameItem();
+    if (_isEditMode) {
+      // 編集モード: 既存データで初期化
+      final report = widget.report!;
+      _locationController.text = report.location;
+      _meshNumberController.text = report.meshNumber ?? '';
+      _selectedDateTime = report.dateTime;
+      _latitude = report.latitude;
+      _longitude = report.longitude;
+      _huntedAnimals.addAll(report.huntedAnimals
+        .map((animal) => HuntedAnimalData.fromHuntedAnimal(animal))
+        .toList());
+      if (_huntedAnimals.isEmpty) {
+        _addHuntedAnimal();
+      }
+    } else {
+      // 新規モード
+      _getCurrentLocation();
+      _addHuntedAnimal();
+    }
   }
 
   @override
   void dispose() {
     _locationController.dispose();
-    for (var item in _gameItems) {
+    for (var item in _huntedAnimals) {
       item.dispose();
     }
     super.dispose();
@@ -90,39 +112,32 @@ class _AddReportScreenState extends State<AddReportScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
     );
+
     if (picked != null) {
-      final TimeOfDay? time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedDateTime),
-      );
-      if (time != null) {
-        setState(() {
-          _selectedDateTime = DateTime(
-            picked.year,
-            picked.month,
-            picked.day,
-            time.hour,
-            time.minute,
-          );
-        });
-      }
+      setState(() {
+        _selectedDateTime = DateTime(
+          picked.year,
+          picked.month,
+          picked.day
+        );
+      });
     }
   }
 
-  void _addGameItem() {
+  void _addHuntedAnimal() {
     setState(() {
-      _gameItems.add(GameItemData());
+      _huntedAnimals.add(HuntedAnimalData());
     });
   }
 
-  void _removeGameItem(int index) {
+  void _removeHuntedAnimal(int index) {
     setState(() {
-      _gameItems[index].dispose();
-      _gameItems.removeAt(index);
+      _huntedAnimals[index].dispose();
+      _huntedAnimals.removeAt(index);
     });
   }
 
-  Future<void> _addImage(int gameItemIndex) async {
+  Future<void> _addImage(int huntedAnimalIndex) async {
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -134,7 +149,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
               title: const Text('カメラで撮影'),
               onTap: () async {
                 Navigator.pop(context);
-                await _takePicture(gameItemIndex);
+                await _takePicture(huntedAnimalIndex);
               },
             ),
             ListTile(
@@ -142,7 +157,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
               title: const Text('ギャラリーから選択'),
               onTap: () async {
                 Navigator.pop(context);
-                await _pickFromGallery(gameItemIndex);
+                await _pickFromGallery(huntedAnimalIndex);
               },
             ),
           ],
@@ -151,7 +166,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
     );
   }
 
-  Future<void> _takePicture(int gameItemIndex) async {
+  Future<void> _takePicture(int huntedAnimalIndex) async {
     try {
       final hasPermission = await CameraService.requestCameraPermission();
       if (hasPermission) {
@@ -159,7 +174,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
         if (imagePath != null) {
           final savedPath = await CameraService.saveImageToAppDirectory(imagePath);
           setState(() {
-            _gameItems[gameItemIndex].imagePaths.add(savedPath);
+            _huntedAnimals[huntedAnimalIndex].imagePaths.add(savedPath);
           });
         }
       } else {
@@ -170,7 +185,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
     }
   }
 
-  Future<void> _pickFromGallery(int gameItemIndex) async {
+  Future<void> _pickFromGallery(int huntedAnimalIndex) async {
     try {
       final hasPermission = await CameraService.requestStoragePermission();
       if (hasPermission) {
@@ -178,7 +193,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
         if (imagePath != null) {
           final savedPath = await CameraService.saveImageToAppDirectory(imagePath);
           setState(() {
-            _gameItems[gameItemIndex].imagePaths.add(savedPath);
+            _huntedAnimals[huntedAnimalIndex].imagePaths.add(savedPath);
           });
         }
       } else {
@@ -189,9 +204,9 @@ class _AddReportScreenState extends State<AddReportScreen> {
     }
   }
 
-  void _removeImage(int gameItemIndex, int imageIndex) {
+  void _removeImage(int huntedAnimalIndex, int imageIndex) {
     setState(() {
-      _gameItems[gameItemIndex].imagePaths.removeAt(imageIndex);
+      _huntedAnimals[huntedAnimalIndex].imagePaths.removeAt(imageIndex);
     });
   }
 
@@ -199,14 +214,14 @@ class _AddReportScreenState extends State<AddReportScreen> {
     if (!_formKey.currentState!.validate()) return false;
     
     // 少なくとも1つの獲物が必要
-    if (_gameItems.isEmpty) {
+    if (_huntedAnimals.isEmpty) {
       _showErrorDialog('少なくとも1つの獲物を登録してください');
       return false;
     }
     
     // 各獲物のバリデーション
-    for (int i = 0; i < _gameItems.length; i++) {
-      final item = _gameItems[i];
+    for (int i = 0; i < _huntedAnimals.length; i++) {
+      final item = _huntedAnimals[i];
       
       // その他選択時の自由入力チェック
       if (item.selectedAnimalType == 'その他' && 
@@ -232,8 +247,8 @@ class _AddReportScreenState extends State<AddReportScreen> {
   Future<void> _saveReport() async {
     if (!_validateForm()) return;
 
-    // GameItemDataをGameItemに変換
-    final gameItems = _gameItems.map((item) => GameItem(
+    // HuntedAnimalDataをHuntedAnimalに変換
+    final huntedAnimals = _huntedAnimals.map((item) => HuntedAnimal(
       animalType: item.currentAnimalType,
       gunCount: int.tryParse(item.gunCountController.text) ?? 0,
       snareCount: int.tryParse(item.snareCountController.text) ?? 0,
@@ -242,16 +257,21 @@ class _AddReportScreenState extends State<AddReportScreen> {
     )).toList();
 
     final report = HuntReport(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: _isEditMode ? widget.report!.id : null,
       location: _locationController.text.trim(),
+      meshNumber: _meshNumberController.text.trim(),
       dateTime: _selectedDateTime,
-      gameItems: gameItems,
+      huntedAnimals: huntedAnimals,
       latitude: _latitude,
       longitude: _longitude,
     );
 
     try {
-      await context.read<HuntReportProvider>().addReport(report);
+      if (_isEditMode) {
+        await context.read<HuntReportProvider>().updateReport(report);
+      } else {
+        await context.read<HuntReportProvider>().addReport(report);
+      }
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -336,17 +356,28 @@ class _AddReportScreenState extends State<AddReportScreen> {
             ),
             const SizedBox(height: 16),
 
+            // メッシュ番号
+            TextFormField(
+              controller: _meshNumberController,
+              decoration: InputDecoration(
+                labelText: 'メッシュ番号',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.edit),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // 日時
             InkWell(
               onTap: _selectDateTime,
               child: InputDecorator(
                 decoration: const InputDecoration(
-                  labelText: '捕獲日時 *',
+                  labelText: '捕獲年月日 *',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.schedule),
+                  prefixIcon: Icon(Icons.calendar_today),
                 ),
                 child: Text(
-                  DateFormat('yyyy年MM月dd日 HH:mm').format(_selectedDateTime),
+                  DateFormat('yyyy年MM月dd日').format(_selectedDateTime),
                 ),
               ),
             ),
@@ -370,7 +401,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
                           ),
                         ),
                         TextButton.icon(
-                          onPressed: _addGameItem,
+                          onPressed: _addHuntedAnimal,
                           icon: const Icon(Icons.add),
                           label: const Text('獲物を追加'),
                         ),
@@ -379,8 +410,8 @@ class _AddReportScreenState extends State<AddReportScreen> {
                     const SizedBox(height: 16),
                     
                     // 獲物のリスト
-                    ...List.generate(_gameItems.length, (index) {
-                      return _buildGameItemCard(index);
+                    ...List.generate(_huntedAnimals.length, (index) {
+                      return _buildHuntedAnimalCard(index);
                     }),
                   ],
                 ),
@@ -410,8 +441,8 @@ class _AddReportScreenState extends State<AddReportScreen> {
     );
   }
 
-  Widget _buildGameItemCard(int index) {
-    final gameItem = _gameItems[index];
+  Widget _buildHuntedAnimalCard(int index) {
+    final huntedAnimal = _huntedAnimals[index];
     
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -430,9 +461,9 @@ class _AddReportScreenState extends State<AddReportScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (_gameItems.length > 1)
+                if (_huntedAnimals.length > 1)
                   IconButton(
-                    onPressed: () => _removeGameItem(index),
+                    onPressed: () => _removeHuntedAnimal(index),
                     icon: const Icon(Icons.delete, color: Colors.red),
                     tooltip: '削除',
                   ),
@@ -440,9 +471,9 @@ class _AddReportScreenState extends State<AddReportScreen> {
             ),
             const SizedBox(height: 16),
 
-                         // 獲物の種類
-             DropdownButtonFormField<String>(
-               value: gameItem.selectedAnimalType,
+            // 獲物の種類
+            DropdownButtonFormField<String>(
+               value: huntedAnimal.selectedAnimalType,
                decoration: const InputDecoration(
                  labelText: '獲物の種類 *',
                  border: OutlineInputBorder(),
@@ -457,7 +488,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
                onChanged: (String? newValue) {
                  if (newValue != null) {
                    setState(() {
-                     gameItem.selectedAnimalType = newValue;
+                     huntedAnimal.selectedAnimalType = newValue;
                    });
                  }
                },
@@ -470,17 +501,17 @@ class _AddReportScreenState extends State<AddReportScreen> {
              ),
              
              // その他選択時の自由入力フィールド
-             if (gameItem.selectedAnimalType == 'その他') ...[
+             if (huntedAnimal.selectedAnimalType == 'その他') ...[
                const SizedBox(height: 16),
                TextFormField(
-                 controller: gameItem.customAnimalTypeController,
+                 controller: huntedAnimal.customAnimalTypeController,
                  decoration: const InputDecoration(
                    labelText: '獲物の種類（自由入力）*',
                    border: OutlineInputBorder(),
                    prefixIcon: Icon(Icons.edit),
                  ),
                  validator: (value) {
-                   if (gameItem.selectedAnimalType == 'その他' && 
+                   if (huntedAnimal.selectedAnimalType == 'その他' && 
                        (value == null || value.trim().isEmpty)) {
                      return '獲物の種類を入力してください';
                    }
@@ -500,7 +531,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
              ),
              const SizedBox(height: 8),
              TextFormField(
-              controller: gameItem.gunCountController,
+              controller: huntedAnimal.gunCountController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: '銃器',
@@ -515,9 +546,9 @@ class _AddReportScreenState extends State<AddReportScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             TextFormField(
-              controller: gameItem.snareCountController,
+              controller: huntedAnimal.snareCountController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: 'くくりわな',
@@ -532,9 +563,9 @@ class _AddReportScreenState extends State<AddReportScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
               TextFormField(
-              controller: gameItem.boxTrapCountController,
+              controller: huntedAnimal.boxTrapCountController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
                 labelText: '箱わな',
@@ -572,7 +603,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
                     ),
                   ],
                 ),
-                                 if (gameItem.imagePaths.isEmpty)
+                if (huntedAnimal.imagePaths.isEmpty)
                    const Padding(
                      padding: EdgeInsets.all(32),
                      child: Center(
@@ -601,14 +632,14 @@ class _AddReportScreenState extends State<AddReportScreen> {
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
                     ),
-                    itemCount: gameItem.imagePaths.length,
+                    itemCount: huntedAnimal.imagePaths.length,
                     itemBuilder: (context, imageIndex) {
                       return Stack(
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: Image.file(
-                              File(gameItem.imagePaths[imageIndex]),
+                              File(huntedAnimal.imagePaths[imageIndex]),
                               width: double.infinity,
                               height: double.infinity,
                               fit: BoxFit.cover,
@@ -647,7 +678,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
 }
 
 // 獲物データを管理するためのヘルパークラス
-class GameItemData {
+class HuntedAnimalData {
   final TextEditingController animalTypeController = TextEditingController();
   final TextEditingController gunCountController = TextEditingController();
   final TextEditingController snareCountController = TextEditingController();
@@ -672,6 +703,18 @@ class GameItemData {
       return customAnimalTypeController.text.trim();
     }
     return selectedAnimalType;
+  }
+  
+  static HuntedAnimalData fromHuntedAnimal(HuntedAnimal animal) {
+    final huntedAnimalData = HuntedAnimalData();
+    huntedAnimalData.selectedAnimalType = animal.animalType;
+    huntedAnimalData.animalTypeController.text = animal.animalType;
+    huntedAnimalData.gunCountController.text = animal.gunCount.toString();
+    huntedAnimalData.snareCountController.text = animal.snareCount.toString();
+    huntedAnimalData.boxTrapCountController.text = animal.boxTrapCount.toString();
+    huntedAnimalData.imagePaths.addAll(animal.imagePaths);
+
+    return huntedAnimalData;
   }
 }
 

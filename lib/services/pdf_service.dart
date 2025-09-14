@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:hunter_report/models/hunter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
@@ -6,7 +7,7 @@ import '../models/hunt_report.dart';
 import 'package:printing/printing.dart';
 
 class PdfService {
-  static Future<File> generateHuntReport(HuntReport report) async {
+  static Future<File> generateHuntReport(Hunter? hunter, HuntReport report) async {
     try {
       final pdf = pw.Document();
       // Google Fontsを使用して日本語フォントを読み込む
@@ -20,11 +21,11 @@ class PdfService {
       }
 
       // 全ての画像を読み込む
-      Map<int, List<pw.MemoryImage>> gameItemImages = {};
-      for (int i = 0; i < report.gameItems.length; i++) {
-        final gameItem = report.gameItems[i];
+      Map<int, List<pw.MemoryImage>> huntedAnimalImages = {};
+      for (int i = 0; i < report.huntedAnimals.length; i++) {
+        final huntedAnimal = report.huntedAnimals[i];
         List<pw.MemoryImage> images = [];
-        for (String imagePath in gameItem.imagePaths) {
+        for (String imagePath in huntedAnimal.imagePaths) {
           try {
             final file = File(imagePath);
             if (await file.exists()) {
@@ -35,7 +36,7 @@ class PdfService {
             print('Error loading image: $e');
           }
         }
-        gameItemImages[i] = images;
+        huntedAnimalImages[i] = images;
       }
 
       pdf.addPage(
@@ -63,7 +64,7 @@ class PdfService {
                       ),
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                        child: pw.Text('', style: pw.TextStyle(font: font)),
+                        child: pw.Text(hunter?.name ?? '', style: pw.TextStyle(font: font)),
                       ),
                     ],
                   ),
@@ -76,7 +77,7 @@ class PdfService {
                       ),
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                        child: pw.Text('', style: pw.TextStyle(font: font)),
+                        child: pw.Text(hunter?.address ?? '', style: pw.TextStyle(font: font)),
                       ),
                     ],
                   ),
@@ -89,7 +90,7 @@ class PdfService {
                       ),
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                        child: pw.Text('', style: pw.TextStyle(font: font)),
+                        child: pw.Text(hunter?.hunterCode ?? '', style: pw.TextStyle(font: font)),
                       ),
                     ],
                   ),
@@ -110,11 +111,11 @@ class PdfService {
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
                         color: PdfColors.grey300,
-                        child: pw.Text('捕獲日時', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
+                        child: pw.Text('捕獲年月日', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
                       ),
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                        child: pw.Text(_formatDateTime(report.dateTime), style: pw.TextStyle(font: font)),
+                        child: pw.Text(_formatDate(report.dateTime), style: pw.TextStyle(font: font)),
                       ),
                     ],
                   ),
@@ -128,6 +129,19 @@ class PdfService {
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
                         child: pw.Text(report.location, style: pw.TextStyle(font: font)),
+                      ),
+                    ],
+                  ),
+                  pw.TableRow(
+                    children: [
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                        color: PdfColors.grey300,
+                        child: pw.Text('メッシュ番号', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font)),
+                      ),
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                        child: pw.Text(report.meshNumber ?? '', style: pw.TextStyle(font: font)),
                       ),
                     ],
                   ),
@@ -186,30 +200,30 @@ class PdfService {
                         ),
                       ],
                     ),
-                    ...report.gameItems.asMap().entries.map((entry) {
+                    ...report.huntedAnimals.asMap().entries.map((entry) {
                       final index = entry.key;
-                      final gameItem = entry.value;
+                      final huntedAnimal = entry.value;
                       return pw.TableRow(
                         children: [
                           pw.Container(
                             padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                            child: pw.Text(gameItem.animalType, style: pw.TextStyle(font: font)),
+                            child: pw.Text(huntedAnimal.animalType, style: pw.TextStyle(font: font)),
                           ),
                           pw.Container(
                             padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                            child: pw.Text('${gameItem.gunCount}頭', style: pw.TextStyle(font: font)),
+                            child: pw.Text('${huntedAnimal.gunCount}頭', style: pw.TextStyle(font: font)),
                           ),
                           pw.Container(
                             padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                            child: pw.Text('${gameItem.snareCount}頭', style: pw.TextStyle(font: font)),
+                            child: pw.Text('${huntedAnimal.snareCount}頭', style: pw.TextStyle(font: font)),
                           ),
                           pw.Container(
                             padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                            child: pw.Text('${gameItem.boxTrapCount}頭', style: pw.TextStyle(font: font)),
+                            child: pw.Text('${huntedAnimal.boxTrapCount}頭', style: pw.TextStyle(font: font)),
                           ),
                           pw.Container(
                             padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                            child: pw.Text('${gameItem.totalCount}頭', style: pw.TextStyle(font: font)),
+                            child: pw.Text('${huntedAnimal.totalCount}頭', style: pw.TextStyle(font: font)),
                           ),
                         ],
                       );
@@ -269,9 +283,9 @@ class PdfService {
       );
 
       // 各獲物の写真ページを追加
-      for (int i = 0; i < report.gameItems.length; i++) {
-        final gameItem = report.gameItems[i];
-        final images = gameItemImages[i] ?? [];
+      for (int i = 0; i < report.huntedAnimals.length; i++) {
+        final huntedAnimal = report.huntedAnimals[i];
+        final images = huntedAnimalImages[i] ?? [];
         
         if (images.isNotEmpty) {
           for (var image in images) {
@@ -282,13 +296,20 @@ class PdfService {
                 build: (pw.Context context) {
                   return pw.Container(
                     margin: const pw.EdgeInsets.all(16),
-                    child: pw.Center(
-                      child: pw.Image(
-                        image, 
-                        width: PdfPageFormat.a4.availableWidth * 0.8,
-                        height: PdfPageFormat.a4.availableHeight * 0.8, 
-                        fit: pw.BoxFit.contain
-                      )
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(huntedAnimal.animalType, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, font: font)),
+                        pw.SizedBox(height: 16),
+                        pw.Center(
+                          child: pw.Image(
+                            image, 
+                            width: PdfPageFormat.a4.availableWidth * 0.8,
+                            height: PdfPageFormat.a4.availableHeight * 0.8, 
+                            fit: pw.BoxFit.contain,
+                          )
+                        )
+                      ]
                     )
                   );
                 }
@@ -314,8 +335,8 @@ class PdfService {
 
 
 
-  static String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.year}年${dateTime.month}月${dateTime.day}日 ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  static String _formatDate(DateTime dateTime) {
+    return '${dateTime.year}年${dateTime.month}月${dateTime.day}日';
   }
 }
 

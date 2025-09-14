@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hunter_report/screens/settings_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/hunt_report_provider.dart';
 import 'add_report_screen.dart';
@@ -15,6 +16,18 @@ class HomeScreen extends StatelessWidget {
         backgroundColor: Colors.green[800],
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Consumer<HuntReportProvider>(
         builder: (context, provider, child) {
@@ -68,24 +81,25 @@ class HomeScreen extends StatelessWidget {
                       color: Colors.green[800],
                     ),
                   ),
-                                     title: Text(
-                     '${report.gameItems.length}種類の獲物',
+                  title: Text(
+                     '${report.huntedAnimals.length}種類の獲物',
                      style: const TextStyle(
                        fontWeight: FontWeight.bold,
                        fontSize: 16,
                      ),
-                   ),
-                   subtitle: Column(
-                     crossAxisAlignment: CrossAxisAlignment.start,
-                     children: [
-                       const SizedBox(height: 4),
-                       Text('場所: ${report.location}'),
-                       Text('日時: ${_formatDateTime(report.dateTime)}'),
-                       Text('獲物: ${report.gameItems.map((item) => item.animalType).join(', ')}'),
-                       Text('総頭数: ${report.gameItems.fold<int>(0, (sum, item) => sum + item.totalCount)}頭'),
-                       Text('写真: ${report.gameItems.fold<int>(0, (sum, item) => sum + item.imagePaths.length)}枚'),
-                     ],
-                   ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text('場所: ${report.location}'),
+                      Text('メッシュ番号: ${report.meshNumber}'),
+                      Text('捕獲年月日: ${_formatDate(report.dateTime)}'),
+                      Text('獲物: ${report.huntedAnimals.map((item) => item.animalType).join(', ')}'),
+                      Text('総頭数: ${report.huntedAnimals.fold<int>(0, (sum, item) => sum + item.totalCount)}頭'),
+                      Text('写真: ${report.huntedAnimals.fold<int>(0, (sum, item) => sum + item.imagePaths.length)}枚'),
+                    ],
+                  ),
                   trailing: PopupMenuButton<String>(
                     onSelected: (value) {
                       if (value == 'view') {
@@ -96,7 +110,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                         );
                       } else if (value == 'delete') {
-                        _showDeleteDialog(context, provider, report.id);
+                        _showDeleteDialog(context, provider, report.id!);
                       }
                     },
                     itemBuilder: (context) => [
@@ -153,11 +167,11 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.year}年${dateTime.month}月${dateTime.day}日 ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  String _formatDate(DateTime dateTime) {
+    return '${dateTime.year}年${dateTime.month}月${dateTime.day}日';
   }
 
-  void _showDeleteDialog(BuildContext context, HuntReportProvider provider, String reportId) {
+  void _showDeleteDialog(BuildContext context, HuntReportProvider provider, int reportId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

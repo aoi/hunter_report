@@ -1,8 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:hunter_report/screens/add_report_screen.dart';
+import 'package:hunter_report/services/database_helper.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/hunt_report.dart';
+import '../providers/hunt_report_provider.dart';
 import '../services/pdf_service.dart';
 
 class ReportDetailScreen extends StatelessWidget {
@@ -12,82 +16,104 @@ class ReportDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('報告詳細'),
-        backgroundColor: Colors.green[800],
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: () => _shareReport(context),
-            tooltip: 'PDFを共有',
+    return Consumer<HuntReportProvider>(
+      builder: (context, provider, child) {
+        // プロバイダーから最新のレポートデータを取得
+        final updatedReport = provider.reports.firstWhere(
+          (r) => r.id == report.id,
+          orElse: () => report, // 見つからない場合は元のレポートを使用
+        );
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('報告詳細'),
+            backgroundColor: Colors.green[800],
+            foregroundColor: Colors.white,
+            elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share),
+                onPressed: () => _shareReport(context, updatedReport),
+                tooltip: 'PDFを共有',
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => AddReportScreen(report: updatedReport),
+                    ),
+                  );
+                },
+                tooltip: '編集',
+              ),
+            ],
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 基本情報カード
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 基本情報カード
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '基本情報',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildInfoRow('捕獲場所', updatedReport.location),
+                        _buildInfoRow('メッシュ番号', updatedReport.meshNumber ?? ''),
+                        _buildInfoRow('捕獲日時', _formatDate(updatedReport.dateTime)),
+                        // if (updatedReport.latitude != null && updatedReport.longitude != null)
+                        //   _buildInfoRow('座標', '${updatedReport.latitude}, ${updatedReport.longitude}'),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 獲物情報セクション
+                ...updatedReport.huntedAnimals.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final huntedAnimal = entry.value;
+                  return _buildHuntedAnimalCard(context, index, huntedAnimal);
+                }).toList(),
+
+                // アクションボタン
+                const SizedBox(height: 16),
+                Row(
                   children: [
-                    const Text(
-                      '基本情報',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _generateAndSharePDF(context, updatedReport),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[800],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        icon: const Icon(Icons.picture_as_pdf),
+                        label: const Text('PDFを生成して共有'),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    _buildInfoRow('捕獲場所', report.location),
-                    _buildInfoRow('捕獲日時', _formatDateTime(report.dateTime)),
-                    if (report.latitude != null && report.longitude != null)
-                      _buildInfoRow('座標', '${report.latitude}, ${report.longitude}'),
                   ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // 獲物情報セクション
-            ...report.gameItems.asMap().entries.map((entry) {
-              final index = entry.key;
-              final gameItem = entry.value;
-              return _buildGameItemCard(context, index, gameItem);
-            }).toList(),
-
-            // アクションボタン
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _generateAndSharePDF(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[800],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    icon: const Icon(Icons.picture_as_pdf),
-                    label: const Text('PDFを生成して共有'),
-                  ),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildGameItemCard(BuildContext context, int index, GameItem gameItem) {
+  Widget _buildHuntedAnimalCard(BuildContext context, int index, HuntedAnimal huntedAnimal) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -112,7 +138,7 @@ class ReportDetailScreen extends StatelessWidget {
                      borderRadius: BorderRadius.circular(12),
                    ),
                    child: Text(
-                     '${gameItem.totalCount}頭',
+                     '${huntedAnimal.totalCount}頭',
                      style: TextStyle(
                        color: Colors.green[800],
                        fontSize: 12,
@@ -123,13 +149,13 @@ class ReportDetailScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16), 
-            _buildInfoRow('獲物の種類', gameItem.animalType),
-            _buildInfoRow('銃器', '${gameItem.gunCount}頭'),
-            _buildInfoRow('くくりわな', '${gameItem.snareCount}頭'),
-            _buildInfoRow('箱わな', '${gameItem.boxTrapCount}頭'),
-            _buildInfoRow('総頭数', '${gameItem.totalCount}頭'),
+            _buildInfoRow('獲物の種類', huntedAnimal.animalType),
+            _buildInfoRow('銃器', '${huntedAnimal.gunCount}頭'),
+            _buildInfoRow('くくりわな', '${huntedAnimal.snareCount}頭'),
+            _buildInfoRow('箱わな', '${huntedAnimal.boxTrapCount}頭'),
+            _buildInfoRow('総頭数', '${huntedAnimal.totalCount}頭'),
             
-            if (gameItem.imagePaths.isNotEmpty) ...[
+            if (huntedAnimal.imagePaths.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
                 '写真',
@@ -148,14 +174,14 @@ class ReportDetailScreen extends StatelessWidget {
                   mainAxisSpacing: 8,
                   childAspectRatio: 1,
                 ),
-                itemCount: gameItem.imagePaths.length,
+                itemCount: huntedAnimal.imagePaths.length,
                 itemBuilder: (context, imageIndex) {
                   return GestureDetector(
-                    onTap: () => _showImageFullScreen(context, gameItem.imagePaths, imageIndex),
+                    onTap: () => _showImageFullScreen(context, huntedAnimal.imagePaths, imageIndex),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.file(
-                        File(gameItem.imagePaths[imageIndex]),
+                        File(huntedAnimal.imagePaths[imageIndex]),
                         width: double.infinity,
                         height: double.infinity,
                         fit: BoxFit.cover,
@@ -198,8 +224,8 @@ class ReportDetailScreen extends StatelessWidget {
     );
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    return DateFormat('yyyy年MM月dd日 HH:mm').format(dateTime);
+  String _formatDate(DateTime dateTime) {
+    return DateFormat('yyyy年MM月dd日').format(dateTime);
   }
 
   void _showImageFullScreen(BuildContext context, List<String> imagePaths, int initialIndex) {
@@ -232,7 +258,7 @@ class ReportDetailScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _generateAndSharePDF(BuildContext context) async {
+  Future<void> _generateAndSharePDF(BuildContext context, HuntReport report) async {
     try {
       // ローディング表示
       showDialog(
@@ -243,10 +269,12 @@ class ReportDetailScreen extends StatelessWidget {
         ),
       );
 
-      print('PDF生成開始: ${report.gameItems.length}種類の獲物');
+      final hunter = await DatabaseHelper().getHunter();
+
+      print('PDF生成開始: ${report.huntedAnimals.length}種類の獲物');
       
       // PDF生成
-      final pdfFile = await PdfService.generateHuntReport(report);
+      final pdfFile = await PdfService.generateHuntReport(hunter, report);
       
       print('PDF生成完了: ${pdfFile.path}');
       
@@ -258,7 +286,7 @@ class ReportDetailScreen extends StatelessWidget {
       // 共有
       await Share.shareXFiles(
         [XFile(pdfFile.path)],
-        text: '狩猟報告書: ${report.gameItems.map((item) => item.animalType).join(', ')}',
+        text: '狩猟報告書: ${report.huntedAnimals.map((item) => item.animalType).join(', ')}',
         subject: '狩猟報告書',
       );
     } catch (e) {
@@ -286,8 +314,8 @@ class ReportDetailScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _shareReport(BuildContext context) async {
-    await _generateAndSharePDF(context);
+  Future<void> _shareReport(BuildContext context, HuntReport report) async {
+    await _generateAndSharePDF(context, report);
   }
 }
 

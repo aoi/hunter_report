@@ -6,8 +6,8 @@ plugins {
 }
 
 android {
-    namespace = "com.example.hunter_report"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.design_ambience.hunter_report"
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -20,8 +20,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.hunter_report"
+        applicationId = "com.design_ambience.hunter_report"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

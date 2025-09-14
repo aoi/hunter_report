@@ -1,13 +1,13 @@
 
 
-class GameItem {
+class HuntedAnimal {
   final String animalType;
   final int gunCount;        // 銃器での捕獲頭数
   final int snareCount;      // くくりわなでの捕獲頭数
   final int boxTrapCount;    // 箱わなでの捕獲頭数
   final List<String> imagePaths;
 
-  GameItem({
+  HuntedAnimal({
     required this.animalType,
     required this.gunCount,
     required this.snareCount,
@@ -15,14 +15,14 @@ class GameItem {
     required this.imagePaths,
   });
 
-  GameItem copyWith({
+  HuntedAnimal copyWith({
     String? animalType,
     int? gunCount,
     int? snareCount,
     int? boxTrapCount,
     List<String>? imagePaths,
   }) {
-    return GameItem(
+    return HuntedAnimal(
       animalType: animalType ?? this.animalType,
       gunCount: gunCount ?? this.gunCount,
       snareCount: snareCount ?? this.snareCount,
@@ -44,8 +44,8 @@ class GameItem {
     };
   }
 
-  factory GameItem.fromJson(Map<String, dynamic> json) {
-    return GameItem(
+  factory HuntedAnimal.fromJson(Map<String, dynamic> json) {
+    return HuntedAnimal(
       animalType: json['animalType'],
       gunCount: json['gunCount'] ?? 0,
       snareCount: json['snareCount'] ?? 0,
@@ -56,35 +56,39 @@ class GameItem {
 }
 
 class HuntReport {
-  final String id;
+  final int? id;
   final String location;
+  final String? meshNumber;
   final DateTime dateTime;
-  final List<GameItem> gameItems;
+  final List<HuntedAnimal> huntedAnimals;
   final double? latitude;
   final double? longitude;
 
   HuntReport({
-    required this.id,
+    this.id,
     required this.location,
+    this.meshNumber,
     required this.dateTime,
-    required this.gameItems,
+    required this.huntedAnimals,
     this.latitude,
     this.longitude,
   });
 
   HuntReport copyWith({
-    String? id,
+    int? id,
     String? location,
+    String? meshNumber,
     DateTime? dateTime,
-    List<GameItem>? gameItems,
+    List<HuntedAnimal>? huntedAnimals,
     double? latitude,
     double? longitude,
   }) {
     return HuntReport(
       id: id ?? this.id,
       location: location ?? this.location,
+      meshNumber: meshNumber ?? this.meshNumber,
       dateTime: dateTime ?? this.dateTime,
-      gameItems: gameItems ?? this.gameItems,
+      huntedAnimals: huntedAnimals ?? this.huntedAnimals,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
     );
@@ -94,8 +98,9 @@ class HuntReport {
     return {
       'id': id,
       'location': location,
+      'meshNumber': meshNumber,
       'dateTime': dateTime.toIso8601String(),
-      'gameItems': gameItems.map((item) => item.toJson()).toList(),
+      'huntedAnimals': huntedAnimals.map((item) => item.toJson()).toList(),
       'latitude': latitude,
       'longitude': longitude,
     };
@@ -105,9 +110,10 @@ class HuntReport {
     return HuntReport(
       id: json['id'],
       location: json['location'],
+      meshNumber: json['meshNumber'],
       dateTime: DateTime.parse(json['dateTime']),
-      gameItems: (json['gameItems'] as List)
-          .map((item) => GameItem.fromJson(item))
+      huntedAnimals: (json['huntedAnimals'] as List)
+          .map((item) => HuntedAnimal.fromJson(item))
           .toList(),
       latitude: json['latitude'],
       longitude: json['longitude'],
