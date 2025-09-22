@@ -227,7 +227,7 @@ class PdfService {
                           ),
                         ],
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),

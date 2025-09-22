@@ -85,7 +85,7 @@ class ReportDetailScreen extends StatelessWidget {
                   final index = entry.key;
                   final huntedAnimal = entry.value;
                   return _buildHuntedAnimalCard(context, index, huntedAnimal);
-                }).toList(),
+                }),
 
                 // アクションボタン
                 const SizedBox(height: 16),

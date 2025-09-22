@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../models/hunt_report.dart';
 import '../providers/hunt_report_provider.dart';
 import '../services/camera_service.dart';
@@ -28,7 +29,7 @@ class _AddReportScreenState extends State<AddReportScreen> {
   bool _isLoading = false;
   
   // 獲物のリスト
-  List<HuntedAnimalData> _huntedAnimals = [];
+  final List<HuntedAnimalData> _huntedAnimals = [];
   
   // 獲物の種類の選択肢
   static const List<String> _animalTypes = [
@@ -178,10 +179,25 @@ class _AddReportScreenState extends State<AddReportScreen> {
           });
         }
       } else {
-        _showPermissionDialog('カメラの権限が必要です');
+        _requestCameraPermission();
+        // _showPermissionDialog('カメラの権限が必要です');
       }
     } catch (e) {
       _showErrorDialog('写真の撮影に失敗しました');
+    }
+  }
+
+  Future<bool> _requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    if (status.isGranted) {
+      return true;
+    } else if (status.isPermanentlyDenied) {
+      _showPermissionDialog('設定からカメラ権限を許可してください');
+      openAppSettings();
+      return false;
+    } else {
+      _showPermissionDialog('カメラの権限が必要です');
+      return false;
     }
   }
 
